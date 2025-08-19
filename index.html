@@ -1,59 +1,70 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>AR WebXR Piso</title>
-    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <title>AR 3D Markerless</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.rawgit.com/jeromeetienne/AR.js/2.2.1/aframe/build/aframe-ar.min.js"></script>
+    <script src="https://unpkg.com/aframe-orbit-controls-component@0.1.20/dist/aframe-orbit-controls-component.min.js"></script>
   </head>
   <body style="margin:0; overflow:hidden;">
-    <a-scene
-      xrweb="optionalFeatures: hit-test"
-      vr-mode-ui="enabled: false"
-      embedded
-      renderer="antialias: true; colorManagement: true;"
-      arjs="sourceType: webcam; debugUIEnabled: false;">
+    <a-scene embedded arjs="trackingMethod: best; debugUIEnabled: false">
       
-      <!-- Cámara -->
-      <a-entity camera look-controls></a-entity>
-
-      <!-- Modelo inicial, invisible hasta colocar -->
-      <a-entity
+      <!-- Modelo frente a la cámara -->
+      <a-entity 
         id="modelo"
         gltf-model="killjoys_turret.glb"
         scale="0.01 0.01 0.01"
-        visible="false">
+        position="0 0 -1">
       </a-entity>
 
-      <!-- Luz para que se vea mejor -->
+      <!-- Luz -->
       <a-entity light="type: ambient; intensity: 1"></a-entity>
       <a-entity light="type: directional; intensity: 0.5" position="1 2 1"></a-entity>
+
+      <!-- Cámara con orbit controls -->
+      <a-entity 
+        camera 
+        look-controls="enabled: false"
+        orbit-controls="
+          target: #modelo;
+          enableDamping: true;
+          dampingFactor: 0.25;
+          rotateSpeed: 0.3;
+          autoRotate: false;">
+      </a-entity>
     </a-scene>
 
     <script>
-      const scene = document.querySelector('a-scene');
       const modelo = document.querySelector('#modelo');
+      const scene = document.querySelector('a-scene');
+      let userInteracting = false;
 
-      // Espera a que WebXR esté disponible
-      scene.addEventListener('enter-vr', () => {
-        const xrSession = scene.renderer.xr.getSession();
-        if (!xrSession) return;
-
-        // Hit test para colocar el modelo en el piso
-        xrSession.requestReferenceSpace('viewer').then((refSpace) => {
-          xrSession.requestHitTestSource({ space: refSpace }).then((hitTestSource) => {
-            scene.renderer.setAnimationLoop((time, frame) => {
-              if (!frame) return;
-              const hitTestResults = frame.getHitTestResults(hitTestSource);
-              if (hitTestResults.length > 0 && modelo.getAttribute('visible') === false) {
-                const hit = hitTestResults[0];
-                const pose = hit.getPose(scene.renderer.xr.getReferenceSpace());
-                modelo.object3D.position.set(pose.transform.position.x, pose.transform.position.y, pose.transform.position.z);
-                modelo.setAttribute('visible', 'true');
-              }
-            });
-          });
-        });
+      // Detener rotación al tocar/arrastrar
+      scene.addEventListener('mousedown', () => {
+        userInteracting = true;
+        modelo.removeAttribute('animation');
       });
+      scene.addEventListener('touchstart', () => {
+        userInteracting = true;
+        modelo.removeAttribute('animation');
+      });
+
+      // Reanudar rotación al soltar
+      scene.addEventListener('mouseup', () => {
+        if (userInteracting) {
+          userInteracting = false;
+          modelo.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
+        }
+      });
+      scene.addEventListener('touchend', () => {
+        if (userInteracting) {
+          userInteracting = false;
+          modelo.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
+        }
+      });
+
+      // Animación inicial de rotación
+      modelo.setAttribute('animation', 'property: rotation; to: 0 360 0; loop: true; dur: 10000; easing: linear');
     </script>
   </body>
 </html>
